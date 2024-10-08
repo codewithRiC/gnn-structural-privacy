@@ -13,3 +13,21 @@ In order to replicate our experiments and reproduce the paper's results, you can
 1. Run ``python experiments.py -n test_job create --attack --device cpu --repeats 10``
 2. Run ``python experiments.py -n test_job exec --all``
    All the datasets will be downloaded automatically into ``/datasets`` folder, and the results will be stored in ``/results`` directory.
+
+
+--- 
+If you find this work useful in your research, please consider citing our paper:
+
+
+```
+@article{
+joshi2024graphprivatizer,
+title={GraphPrivatizer: Improved Structural Differential Privacy for Graph Neural Networks},
+author={Rucha Bhalchandra Joshi and Patrick Indri and Subhankar Mishra},
+journal={Transactions on Machine Learning Research},
+issn={2835-8856},
+year={2024},
+url={https://openreview.net/forum?id=lcPtUhoGYc},
+note={}
+}
+```
