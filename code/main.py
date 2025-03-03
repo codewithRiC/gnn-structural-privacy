@@ -65,10 +65,12 @@ def run(args):
                 from_args(FeaturePerturbation, args),
                 from_args(LabelPerturbation, args)
             ])(non_sp_data)
+            
+            print(f"{non_sp_data:}")
 
             data = dataset.clone().to(args.device)
 
-            # preprocess data
+            # # preprocess data
             data = Compose([
                 from_args(FeatureTransform, args),
                 from_args(FeaturePerturbation, args),
@@ -76,10 +78,80 @@ def run(args):
                 from_args(PrivatizeStructure, args)
                 # from_args(TwoHopRRBaseline, args)
             ])(data)
+            
+            print(f"{data:}") 
+            # exit()
+            
+            #
+            # 
+            # 
+            # Ensure the node feature matrices have the same shape
+            assert non_sp_data.x.shape == data.x.shape, "Node feature matrices have different shapes!"
 
+            # Compare the feature matrices element-wise
+            num_nodes, num_features = non_sp_data.x.shape
+            
+
+            for node in range(num_nodes):
+                similar_count = 0
+                for feature in range(num_features):
+                    non_sp_value = non_sp_data.x[node, feature]
+                    sp_value = data.x[node, feature]
+                    # if non_sp_value != sp_value:
+                    #     print(f"Node {node}, Feature {feature}: non_sp_data = {non_sp_value}, data = {sp_value}")
+                    if non_sp_value == sp_value:
+                        similar_count += 1
+
+                print(f"Node {node}: Total number of similar x values = {similar_count}")
+            
             different_edges = (data.adj_t.to_dense() != non_sp_data.adj_t.to_dense()).sum()
             print(f"{different_edges} edges have been changed!")
+            
+            # different_edges = (data.edge_index != non_sp_data.edge_index).sum().item()
+            # print(f"{different_edges} edges have been changed!")
+             
+            # #--------------
+            # #Save the privatized dataset as nodewise
+            # private_structure_dir = os.path.join(args.output_dir, f"private_structure_{run_id}")
+            # os.makedirs(private_structure_dir, exist_ok=True)
 
+            # for node_id in range(data.num_nodes):
+            #     # Extract node-wise private structure (edges related to the node)
+            #     private_edges = data.adj_t[node_id].to_dense().nonzero(as_tuple=True)
+            #     private_edges_path = os.path.join(private_structure_dir, f"node_{node_id}.pt")
+            #     torch.save(private_edges, private_edges_path)
+
+            # print(f"Node-wise private structure saved at: {private_structure_dir}")
+            # #-----------------
+            
+            #------------------
+            #Save the private dataset as whole
+            # Directory to save the processed dataset
+            processed_dir = os.path.join(args.output_dir, f"processed_structure_{run_id}")
+            os.makedirs(processed_dir, exist_ok=True)
+
+            # Create a dictionary to hold the dataset
+            dataset_dict = {
+                "node_features": data.x,          # Node features tensor
+                "edge_index": data.edge_index,    # Edge index tensor
+                "node_labels": data.y,            # Node labels tensor
+                "train_mask": data.train_mask,    # Training mask
+                "val_mask": data.val_mask,        # Validation mask
+                "test_mask": data.test_mask       # Test mask
+            }
+
+            # Path to save the dataset
+            dataset_path = os.path.join(processed_dir, "graph_data.pt")
+
+            # Save the entire dataset
+            torch.save(dataset_dict, dataset_path)
+
+            print(f"Processed graph structure saved at: {dataset_path}")
+
+            
+            #-------------------
+            exit()
+            
             # define model
             model = from_args(NodeClassifier, args, input_dim=data.num_features, num_classes=data.num_classes)
 

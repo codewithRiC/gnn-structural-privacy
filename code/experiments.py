@@ -126,10 +126,11 @@ def experiments(args):
     run_cmds = []
     cmdbuilder = CommandBuilder(args=args, hparams_dir='./hparams')
     # datasets = ['cora', 'pubmed', 'lastfm', 'facebook']
-    datasets = ['cora']
+    datasets = ['pubmed']
     
     # best steps from LPGNN
-    steps ={'cora':     [16, 2]}
+    steps ={'pubmed':     [16, 0]}
+            # {'cora':     [16, 2],
             # 'pubmed':   [16, 0],
             # 'lastfm':   [16, 0],
             # 'facebook': [4, 2]}
@@ -147,7 +148,7 @@ def experiments(args):
             # e_eps=[0.1, 1, 2, 8, np.inf],
             # alpha=[0, 0.25, 0.5, 0.75, 1],
             # delta=[0, 0.1, 0.25, 0.5, 1.0],
-            e_eps=[0.1],
+            e_eps=[1],
             alpha=[0.5],
             delta=[0],
             similarity=['cosine', 'l1'],
@@ -204,10 +205,11 @@ def attack_experiments(args):
     cmdbuilder = CommandBuilder(args=args, hparams_dir='./hparams')
     # datasets = ['cora', 'pubmed', 'lastfm', 'facebook']
     # datasets = ['cora', 'pubmed', 'lastfm']
-    datasets = ['cora']
+    datasets = ['pubmed']
 
     # best steps from LPGNN
-    steps ={'cora':     [16, 2]}
+    steps ={'pubmed':     [16, 0]}
+            # {'cora':     [16, 2],
             # 'pubmed':   [16, 0],
             # 'lastfm':   [16, 0]}
             # 'cornell':   [16, 0]}
@@ -226,7 +228,8 @@ def attack_experiments(args):
             x_steps=steps[dataset][0],
             y_eps=[3],
             y_steps=steps[dataset][1],
-            e_eps=[0.1],
+            e_eps=[1],
+            # e_eps=[0.1, 1, 2, 8, np.inf],
             # alpha=[0, 0.25, 0.5, 0.75, 1],
             # delta=[0, 0.25, 0.5, 0.75, 1],
             alpha=[0.5],

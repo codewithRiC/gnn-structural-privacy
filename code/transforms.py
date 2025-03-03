@@ -299,8 +299,9 @@ class PrivatizeStructure:
             pert_adj = self.querySimilar(data)
 
             data.edge_index = torch.stack(list(pert_adj.nonzero(as_tuple=True)), dim=1).permute(1, 0).long()
-            data = ToSparseTensor()(data)
-
+            # data = ToSparseTensor()(data) #this one is needed to be hashed
+            # data.adj_t = pert_adj 
+             
         return data
 
 
