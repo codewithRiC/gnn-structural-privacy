@@ -126,10 +126,10 @@ def experiments(args):
     run_cmds = []
     cmdbuilder = CommandBuilder(args=args, hparams_dir='./hparams')
     # datasets = ['cora', 'pubmed', 'lastfm', 'facebook']
-    datasets = ['pubmed']
+    datasets = ['citeseer']
     
     # best steps from LPGNN
-    steps ={'pubmed':     [16, 0]}
+    steps ={'citeseer':     [16, 0]}
             # {'cora':     [16, 2],
             # 'pubmed':   [16, 0],
             # 'lastfm':   [16, 0],
@@ -205,10 +205,10 @@ def attack_experiments(args):
     cmdbuilder = CommandBuilder(args=args, hparams_dir='./hparams')
     # datasets = ['cora', 'pubmed', 'lastfm', 'facebook']
     # datasets = ['cora', 'pubmed', 'lastfm']
-    datasets = ['pubmed']
+    datasets = ['citeseer']
 
     # best steps from LPGNN
-    steps ={'pubmed':     [16, 0]}
+    steps ={'citeseer':     [16, 0]}
             # {'cora':     [16, 2],
             # 'pubmed':   [16, 0],
             # 'lastfm':   [16, 0]}

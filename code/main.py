@@ -7,6 +7,8 @@ import random
 import numpy as np
 import pandas as pd
 import torch
+import json
+import pickle
 from tqdm.auto import tqdm
 from torch_geometric.transforms import Compose
 from datasets import load_dataset
@@ -72,10 +74,10 @@ def run(args):
 
             # # preprocess data
             data = Compose([
-                from_args(FeatureTransform, args),
-                from_args(FeaturePerturbation, args),
-                from_args(LabelPerturbation, args),
-                from_args(PrivatizeStructure, args)
+                # from_args(FeatureTransform, args),
+                # from_args(FeaturePerturbation, args),
+                from_args(LabelPerturbation, args)
+                # from_args(PrivatizeStructure, args)
                 # from_args(TwoHopRRBaseline, args)
             ])(data)
             
@@ -127,9 +129,49 @@ def run(args):
             #------------------
             #Save the private dataset as whole
             # Directory to save the processed dataset
-            processed_dir = os.path.join(args.output_dir, f"processed_structure_{run_id}")
+            processed_dir = os.path.join(args.output_dir, f"{args.dataset}:{args.e_eps}")
             os.makedirs(processed_dir, exist_ok=True)
 
+            # Define the prefix for file names
+            prefix = os.path.join(processed_dir, f"ind.{args.dataset}")
+
+            # Save node features using pickle
+            with open(f"{prefix}.x", "wb") as f:
+                pickle.dump(data.x[data.train_mask], f)  # Training node features
+            with open(f"{prefix}.tx", "wb") as f:
+                pickle.dump(data.x[data.test_mask], f)  # Test node features
+            with open(f"{prefix}.allx", "wb") as f:
+                pickle.dump(data.x, f)  # All node features
+
+            # Save node labels using pickle
+            with open(f"{prefix}.y", "wb") as f:
+                pickle.dump(data.y[data.train_mask], f)  # Training node labels
+            with open(f"{prefix}.ty", "wb") as f:
+                pickle.dump(data.y[data.test_mask], f)  # Test node labels
+            with open(f"{prefix}.ally", "wb") as f:
+                pickle.dump(data.y, f)  # All node labels
+            
+            print("Debug: data.edge_index =", data.edge_index)
+            # Save graph structure as plain text
+            if data.edge_index is not None and data.edge_index.size(1) > 0:
+                # Convert edge_index to a dictionary representation of the graph
+                graph = {}
+                for i in range(data.x.size(0)):
+                    # Ensure neighbors are extracted correctly
+                    neighbors = data.edge_index[1, data.edge_index[0] == i].tolist()
+                    graph[i] = neighbors
+
+                # Save the graph dictionary as a JSON file for better readability
+                with open(f"{prefix}.graph", "w") as f:
+                    json.dump(graph, f, indent=4)
+                print(f"Graph structure saved at: {prefix}.graph")
+            else:
+                print("Warning: data.edge_index is None or empty. Skipping graph structure saving.")
+
+            # Save test indices as plain text
+            test_indices = torch.nonzero(data.test_mask, as_tuple=True)[0].tolist()
+            with open(f"{prefix}.test.index", "w") as f:
+                f.write("\n".join(map(str, test_indices)))
             # Create a dictionary to hold the dataset
             dataset_dict = {
                 "node_features": data.x,          # Node features tensor
@@ -139,7 +181,7 @@ def run(args):
                 "val_mask": data.val_mask,        # Validation mask
                 "test_mask": data.test_mask       # Test mask
             }
-
+          
             # Path to save the dataset
             dataset_path = os.path.join(processed_dir, "graph_data.pt")
 
