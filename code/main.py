@@ -74,10 +74,10 @@ def run(args):
 
             # # preprocess data
             data = Compose([
-                # from_args(FeatureTransform, args),
-                # from_args(FeaturePerturbation, args),
-                from_args(LabelPerturbation, args)
-                # from_args(PrivatizeStructure, args)
+                from_args(FeatureTransform, args),
+                from_args(FeaturePerturbation, args),
+                from_args(LabelPerturbation, args),
+                from_args(PrivatizeStructure, args)
                 # from_args(TwoHopRRBaseline, args)
             ])(data)
             
@@ -135,21 +135,48 @@ def run(args):
             # Define the prefix for file names
             prefix = os.path.join(processed_dir, f"ind.{args.dataset}")
 
+            # Dynamically calculate the number of nodes and splits
+            num_nodes = data.x.size(0)  # Total number of nodes
+            train_size = int(num_nodes * 0.5)  # 50% for training
+            test_size = int(num_nodes * 0.25)  # 25% for testing
+            val_size = num_nodes - train_size - test_size  # Remaining 25% for validation
+
+            # Create train, test, and validation masks
+            train_mask = torch.zeros(num_nodes, dtype=torch.bool)
+            test_mask = torch.zeros(num_nodes, dtype=torch.bool)
+            val_mask = torch.zeros(num_nodes, dtype=torch.bool)
+
+            # Assign masks
+            train_mask[:train_size] = True
+            test_mask[train_size:train_size + test_size] = True
+            val_mask[train_size + test_size:] = True
+
+            # Shuffle the masks to ensure randomness
+            perm = torch.randperm(num_nodes)
+            train_mask = train_mask[perm]
+            test_mask = test_mask[perm]
+            val_mask = val_mask[perm]
+
             # Save node features using pickle
             with open(f"{prefix}.x", "wb") as f:
-                pickle.dump(data.x[data.train_mask], f)  # Training node features
+                pickle.dump(data.x[train_mask], f)  # Training node features
             with open(f"{prefix}.tx", "wb") as f:
-                pickle.dump(data.x[data.test_mask], f)  # Test node features
+                pickle.dump(data.x[test_mask], f)  # Test node features
             with open(f"{prefix}.allx", "wb") as f:
-                pickle.dump(data.x, f)  # All node features
+                pickle.dump(data.x[train_mask | val_mask], f)  # All node features (train + validation)
 
             # Save node labels using pickle
             with open(f"{prefix}.y", "wb") as f:
-                pickle.dump(data.y[data.train_mask], f)  # Training node labels
+                pickle.dump(data.y[train_mask], f)  # Training node labels
             with open(f"{prefix}.ty", "wb") as f:
-                pickle.dump(data.y[data.test_mask], f)  # Test node labels
+                pickle.dump(data.y[test_mask], f)  # Test node labels
             with open(f"{prefix}.ally", "wb") as f:
-                pickle.dump(data.y, f)  # All node labels
+                pickle.dump(data.y[train_mask | val_mask], f)  # All node labels
+
+            # Debugging output
+            print(f"File: {prefix}.x, Shape: {data.x[train_mask].shape}")
+            print(f"File: {prefix}.tx, Shape: {data.x[test_mask].shape}")
+            print(f"File: {prefix}.allx, Shape: {data.x[train_mask | val_mask].shape}")
             
             print("Debug: data.edge_index =", data.edge_index)
             # Save graph structure as plain text
