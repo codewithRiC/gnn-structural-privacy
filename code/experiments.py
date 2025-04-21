@@ -203,17 +203,19 @@ def top_k_experiments(args):
 def attack_experiments(args):
     run_cmds = []
     cmdbuilder = CommandBuilder(args=args, hparams_dir='./hparams')
-    # datasets = ['cora', 'pubmed', 'lastfm', 'facebook']
+    # datasets = ['cora', 'pubmed', 'lastfm', 'facebook', 'citeseer', 'bitcoinalpha']
     # datasets = ['cora', 'pubmed', 'lastfm']
-    datasets = ['citeseer']
+    datasets = ['bitcoinalpha']
 
     # best steps from LPGNN
-    steps ={'citeseer':     [16, 0]}
+    steps ={'bitcoinalpha':     [16, 0]}
             # {'cora':     [16, 2],
             # 'pubmed':   [16, 0],
             # 'lastfm':   [16, 0]}
             # 'cornell':   [16, 0]}
             # 'facebook': [4, 2]}
+            # 'bitcoinalpha': [16, 0]}
+            # 'citeseer':     [16, 0]}
 
     for dataset in datasets:
         run_cmds += cmdbuilder.build(

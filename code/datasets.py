@@ -89,6 +89,77 @@ supported_datasets = {
     'lastfm': partial(KarateClub, name='lastfm', transform=FilterTopClass(10)),
 }
 
+class BitcoinAlpha(InMemoryDataset):
+    available_datasets = {'bitcoinalpha'}
+
+    def __init__(self, root, name='bitcoinalpha', transform=None, pre_transform=None):
+        self.name = name.lower()
+        assert self.name in self.available_datasets
+
+        super().__init__(root, transform, pre_transform)
+        self.data, self.slices = torch.load(self.processed_paths[0])
+
+    @property
+    def raw_dir(self):
+        return os.path.join(self.root, self.name, 'raw')
+
+    @property
+    def raw_file_names(self):
+        return ['bitcoinalpha.csv']
+
+    @property
+    def processed_dir(self):
+        return os.path.join(self.root, self.name, 'processed')
+
+    @property
+    def processed_file_names(self):
+        return 'data.pt'
+
+    def download(self):
+        # Skip downloading since the file is already available locally
+        print("Skipping download. Ensure the 'bitcoinalpha.csv' file is present in the raw directory.")
+
+    def process(self):
+        # Load the single CSV file
+        file_path = os.path.join(self.raw_dir, self.raw_file_names[0])
+        df = pd.read_csv(file_path)
+
+        # Extract edges
+        edge_index = torch.tensor(df[['source', 'target']].to_numpy().T, dtype=torch.long)
+
+        # Extract features
+        if 'feature_0' in df.columns:  # Assuming features are named as 'feature_0', 'feature_1', etc.
+            feature_columns = [col for col in df.columns if col.startswith('feature_')]
+            x = torch.tensor(df[feature_columns].to_numpy(), dtype=torch.float)
+        else:
+            # If no features are provided, use an identity matrix as features
+            num_nodes = max(edge_index.max().item() + 1, len(df))
+            x = torch.eye(num_nodes, dtype=torch.float)
+
+        # Extract labels
+        if 'label' in df.columns:  # Assuming labels are in a column named 'label'
+            y = torch.tensor(df['label'].to_numpy(), dtype=torch.long)
+        else:
+            # If no labels are provided, use dummy labels
+            y = torch.zeros(x.size(0), dtype=torch.long)
+
+        # Create the PyTorch Geometric Data object
+        num_nodes = x.size(0)
+        edge_index = to_undirected(edge_index, num_nodes)  # Convert to undirected edges
+        data = Data(x=x, edge_index=edge_index, y=y, num_nodes=num_nodes)
+
+        if self.pre_transform is not None:
+            data = self.pre_transform(data)
+
+        # Save the processed data
+        torch.save(self.collate([data]), self.processed_paths[0])
+
+    def __repr__(self):
+        return f'BitcoinAlpha-{self.name}()'
+
+
+# Add BitcoinAlpha to the supported datasets
+supported_datasets['bitcoinalpha'] = partial(BitcoinAlpha, name='bitcoinalpha')
 
 def load_dataset(
         dataset: dict(help='name of the dataset', option='-d', choices=supported_datasets) = 'cora',
