@@ -276,14 +276,14 @@ class BitcoinAlpha(InMemoryDataset):
             
         # Save the entire graph as a .pt file
         graph_data = {
-            "x": x,
-            "y": y,
+            "node_features": x,
+            "node_labels": y,
             "edge_index": edge_index,
             "train_mask": train_mask,
             "val_mask": val_mask,
             "test_mask": test_mask,
         }
-        torch.save(graph_data, os.path.join(processed_dir, "graph.pt"))    
+        torch.save(graph_data, os.path.join(processed_dir, "graph_data.pt"))    
 
         print(f"Processed dataset saved in {processed_dir}")
         
