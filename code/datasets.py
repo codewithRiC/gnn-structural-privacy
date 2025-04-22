@@ -122,6 +122,8 @@ class BitcoinAlpha(InMemoryDataset):
     def process(self):
         import networkx as nx
         import numpy as np
+        import pickle
+        import json
 
         # Load the single CSV file
         file_path = os.path.join(self.raw_dir, self.raw_file_names[0])
@@ -216,6 +218,76 @@ class BitcoinAlpha(InMemoryDataset):
 
         # Save the processed data
         torch.save(self.collate([data]), self.processed_paths[0])
+        
+        
+        #------#TODO: Modified to save the original raw data-----------------------------
+        # Create train, test, and validation masks 
+        train_size = int(num_nodes * 0.5)  # 50% for training
+        test_size = int(num_nodes * 0.25)  # 25% for testing
+        val_size = num_nodes - train_size - test_size  # Remaining 25% for validation
+
+        train_mask = torch.zeros(num_nodes, dtype=torch.bool)
+        test_mask = torch.zeros(num_nodes, dtype=torch.bool)
+        val_mask = torch.zeros(num_nodes, dtype=torch.bool)
+
+        train_mask[:train_size] = True
+        test_mask[train_size:train_size + test_size] = True
+        val_mask[train_size + test_size:] = True
+
+        # Shuffle the masks to ensure randomness
+        perm = torch.randperm(num_nodes)
+        train_mask = train_mask[perm]
+        test_mask = test_mask[perm]
+        val_mask = val_mask[perm]
+
+        # Save the processed dataset as raw files
+        processed_dir = self.processed_dir
+        os.makedirs(processed_dir, exist_ok=True)
+        prefix = os.path.join(processed_dir, f"ind.{self.name}")
+
+        # Save node features
+        with open(f"{prefix}.x", "wb") as f:
+            pickle.dump(x[train_mask], f)  # Training node features
+        with open(f"{prefix}.tx", "wb") as f:
+            pickle.dump(x[test_mask], f)  # Test node features
+        with open(f"{prefix}.allx", "wb") as f:
+            pickle.dump(x[train_mask | val_mask], f)  # All node features (train + validation)
+
+        # Save node labels
+        with open(f"{prefix}.y", "wb") as f:
+            pickle.dump(y[train_mask], f)  # Training node labels
+        with open(f"{prefix}.ty", "wb") as f:
+            pickle.dump(y[test_mask], f)  # Test node labels
+        with open(f"{prefix}.ally", "wb") as f:
+            pickle.dump(y[train_mask | val_mask], f)  # All node labels
+
+        # Save graph structure
+        graph = {}
+        for i in range(num_nodes):
+            neighbors = edge_index[1, edge_index[0] == i].tolist()
+            graph[i] = neighbors
+        with open(f"{prefix}.graph", "w") as f:
+            json.dump(graph, f, indent=4)
+
+        # Save test indices
+        test_indices = torch.nonzero(test_mask, as_tuple=True)[0].tolist()
+        with open(f"{prefix}.test.index", "w") as f:
+            f.write("\n".join(map(str, test_indices)))
+            
+        # Save the entire graph as a .pt file
+        graph_data = {
+            "x": x,
+            "y": y,
+            "edge_index": edge_index,
+            "train_mask": train_mask,
+            "val_mask": val_mask,
+            "test_mask": test_mask,
+        }
+        torch.save(graph_data, os.path.join(processed_dir, "graph.pt"))    
+
+        print(f"Processed dataset saved in {processed_dir}")
+        
+        #------------------------------------------------------------------------------
             
     def __repr__(self):
         return f'BitcoinAlpha-{self.name}()'

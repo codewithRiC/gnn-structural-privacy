@@ -74,14 +74,14 @@ def run(args):
 
             data = dataset.clone().to(args.device)
 
-            # # preprocess data
-            # data = Compose([
-            #     from_args(FeatureTransform, args),
-            #     from_args(FeaturePerturbation, args),
-            #     from_args(LabelPerturbation, args),
-            #     from_args(PrivatizeStructure, args)
-            #     # from_args(TwoHopRRBaseline, args)
-            # ])(data)
+            # preprocess data
+            data = Compose([
+                from_args(FeatureTransform, args),
+                from_args(FeaturePerturbation, args),
+                from_args(LabelPerturbation, args),
+                from_args(PrivatizeStructure, args)
+                # from_args(TwoHopRRBaseline, args)
+            ])(data)
             
             print(f"{data:}") 
             # exit()
