@@ -120,32 +120,95 @@ class BitcoinAlpha(InMemoryDataset):
         print("Skipping download. Ensure the 'bitcoinalpha.csv' file is present in the raw directory.")
 
     def process(self):
+        import networkx as nx
+        import numpy as np
+
         # Load the single CSV file
         file_path = os.path.join(self.raw_dir, self.raw_file_names[0])
         df = pd.read_csv(file_path)
 
-        # Extract edges
-        edge_index = torch.tensor(df[['source', 'target']].to_numpy().T, dtype=torch.long)
+        # Create a directed graph from the edge list
+        G = nx.from_pandas_edgelist(df, source='SOURCE', target='TARGET', edge_attr='RATING', create_using=nx.DiGraph())
 
-        # Extract features
-        if 'feature_0' in df.columns:  # Assuming features are named as 'feature_0', 'feature_1', etc.
-            feature_columns = [col for col in df.columns if col.startswith('feature_')]
-            x = torch.tensor(df[feature_columns].to_numpy(), dtype=torch.float)
-        else:
-            # If no features are provided, use an identity matrix as features
-            num_nodes = max(edge_index.max().item() + 1, len(df))
-            x = torch.eye(num_nodes, dtype=torch.float)
+        # Relabel nodes to ensure they are sequentially numbered
+        mapping = {node: idx for idx, node in enumerate(G.nodes())}
+        G = nx.relabel_nodes(G, mapping)
 
-        # Extract labels
-        if 'label' in df.columns:  # Assuming labels are in a column named 'label'
-            y = torch.tensor(df['label'].to_numpy(), dtype=torch.long)
-        else:
-            # If no labels are provided, use dummy labels
-            y = torch.zeros(x.size(0), dtype=torch.long)
+        # Extract edge attributes
+        rating = nx.get_edge_attributes(G, 'RATING')
+        max_rating = max(rating.values())
+        degree_sequence_in = [d for _, d in G.in_degree()]
+        dmax_in = max(degree_sequence_in)
+        degree_sequence_out = [d for _, d in G.out_degree()]
+        dmax_out = max(degree_sequence_out)
+
+        # Generate labels for nodes
+        label_mapping = {}
+        rate_mapping = {}
+        decision_threshold = 0.3
+        number_of_in_nodes_threshold = 3
+
+        for node in G.nodes():
+            in_edges_list = G.in_edges(node)
+            if len(in_edges_list) < number_of_in_nodes_threshold:
+                total_rate = 0
+                label = 0
+                rate_mapping[node] = 0
+                label_mapping[node] = label
+            else:
+                total_rate = 0
+                for source, _ in in_edges_list:
+                    total_rate += G.get_edge_data(source, node)['RATING'] / abs(G.get_edge_data(source, node)['RATING'])
+                average_rate = total_rate / len(in_edges_list)
+
+                label = 1 if average_rate >= decision_threshold else 0
+                rate_mapping[node] = average_rate
+                label_mapping[node] = label
+
+        # Generate features for nodes
+        feature_length = 8
+        feat_dict = {}
+        for node in G.nodes():
+            out_edges_list = G.out_edges(node)
+
+            if len(out_edges_list) == 0:
+                features = np.ones(feature_length, dtype=float) / 1000
+            else:
+                features = np.zeros(feature_length, dtype=float)
+                w_pos = 0
+                w_neg = 0
+                for _, target in out_edges_list:
+                    w = G.get_edge_data(node, target)['RATING']
+                    if w >= 0:
+                        w_pos += w
+                    else:
+                        w_neg -= w
+
+                abstotal = w_pos + w_neg
+                average = (w_pos - w_neg) / len(out_edges_list) / max_rating
+
+                features[0] = w_pos / max_rating / len(out_edges_list)  # average positive vote
+                features[1] = w_neg / max_rating / len(out_edges_list)  # average negative vote
+                features[2] = w_pos / abstotal
+                features[3] = average
+                features[4] = features[0] * G.in_degree(node) / dmax_in
+                features[5] = features[1] * G.in_degree(node) / dmax_in
+                features[6] = features[0] * G.out_degree(node) / dmax_out
+                features[7] = features[1] * G.out_degree(node) / dmax_out
+
+                features = features / 1.01 + 0.001
+
+            feat_dict[node] = features
+
+        # Convert features and labels to tensors
+        num_nodes = len(G.nodes())
+        x = torch.tensor([feat_dict[node] for node in range(num_nodes)], dtype=torch.float)
+        y = torch.tensor([label_mapping[node] for node in range(num_nodes)], dtype=torch.long)
+
+        # Convert edges to edge_index
+        edge_index = torch.tensor(list(G.edges), dtype=torch.long).t()
 
         # Create the PyTorch Geometric Data object
-        num_nodes = x.size(0)
-        edge_index = to_undirected(edge_index, num_nodes)  # Convert to undirected edges
         data = Data(x=x, edge_index=edge_index, y=y, num_nodes=num_nodes)
 
         if self.pre_transform is not None:
@@ -153,7 +216,7 @@ class BitcoinAlpha(InMemoryDataset):
 
         # Save the processed data
         torch.save(self.collate([data]), self.processed_paths[0])
-
+            
     def __repr__(self):
         return f'BitcoinAlpha-{self.name}()'
 

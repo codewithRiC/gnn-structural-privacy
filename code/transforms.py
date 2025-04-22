@@ -368,7 +368,8 @@ class TwoHopRRBaseline:
 
         print(f"removed: {number_removed_edges}")
         print(f"added: {number_added_edges}")
-        return dense_adj
+        return dense_adj, number_added_edges, number_removed_edges
+
 
     def __call__(self, data):
 

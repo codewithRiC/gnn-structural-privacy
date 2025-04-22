@@ -42,6 +42,8 @@ def confidence_interval(data, func=np.mean, size=1000, ci=95, seed=12345):
 def run(args):
     dataset = from_args(load_dataset, args)
 
+ 
+    
     test_acc = []
     attack_auc = []
     run_metrics = {}
@@ -73,13 +75,13 @@ def run(args):
             data = dataset.clone().to(args.device)
 
             # # preprocess data
-            data = Compose([
-                from_args(FeatureTransform, args),
-                from_args(FeaturePerturbation, args),
-                from_args(LabelPerturbation, args),
-                from_args(PrivatizeStructure, args)
-                # from_args(TwoHopRRBaseline, args)
-            ])(data)
+            # data = Compose([
+            #     from_args(FeatureTransform, args),
+            #     from_args(FeaturePerturbation, args),
+            #     from_args(LabelPerturbation, args),
+            #     from_args(PrivatizeStructure, args)
+            #     # from_args(TwoHopRRBaseline, args)
+            # ])(data)
             
             print(f"{data:}") 
             # exit()
@@ -127,6 +129,7 @@ def run(args):
             # #-----------------
             
             #------------------
+            
             #Save the private dataset as whole
             # Directory to save the processed dataset
             processed_dir = os.path.join(args.output_dir, f"{args.dataset}:{args.e_eps}")
@@ -208,7 +211,13 @@ def run(args):
                 "val_mask": data.val_mask,        # Validation mask
                 "test_mask": data.test_mask       # Test mask
             }
-          
+
+            # Access the processed data
+            print(data)
+            print(f"Number of nodes: {data.num_nodes}")
+            print(f"Number of edges: {data.edge_index.size(1)}")
+            print(f"Feature matrix shape: {data.x.shape}")
+            print(f"Labels shape: {data.y.shape}")
             # Path to save the dataset
             dataset_path = os.path.join(processed_dir, "graph_data.pt")
 
